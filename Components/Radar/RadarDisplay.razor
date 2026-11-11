@@ -1,0 +1,77 @@
+@using System.Globalization
+@using RadarTrainer.Models
+
+<div class="radar-frame">
+    <div class="radar-screen">
+        <svg class="radar-scope" viewBox="0 0 800 800" role="img" aria-label="Head-up radar display with four range rings and simulated contacts. Contact details are listed below the display.">
+            <circle class="scope-background" cx="400" cy="400" r="328" />
+            <circle class="range-ring" cx="400" cy="400" r="82" />
+            <circle class="range-ring" cx="400" cy="400" r="164" />
+            <circle class="range-ring" cx="400" cy="400" r="246" />
+            <circle class="scope-edge" cx="400" cy="400" r="328" />
+            <line class="cross-line" x1="72" y1="400" x2="728" y2="400" />
+            <line class="cross-line" x1="400" y1="72" x2="400" y2="728" />
+            <line class="heading-line" x1="400" y1="400" x2="400" y2="72" />
+            <path class="heading-marker" d="M 400 62 L 393 48 L 407 48 Z" />
+            <text class="scope-label" x="400" y="39" text-anchor="middle">HDG</text>
+            @foreach (var contact in State.Contacts)
+            {
+                <g transform="@ContactTransform(contact)">
+                    <circle class="contact-glow" r="12" />
+                    <circle class="contact-return" r="5" />
+                    <text class="contact-label" x="14" y="-10">@contact.Name</text>
+                </g>
+            }
+            <path class="own-vessel" d="M 400 388 L 393 410 L 400 406 L 407 410 Z" />
+        </svg>
+
+        <div class="panel top-left"><InstrumentPanel Label="GPS speed">@State.Speed <span class="unit">kn</span></InstrumentPanel></div>
+        <div class="panel top-right"><InstrumentPanel Label="GPS heading">@State.Heading° <span class="unit">T</span></InstrumentPanel></div>
+        <div class="panel bottom-left"><InstrumentPanel Label="Depth">@State.Depth <span class="unit">m</span></InstrumentPanel></div>
+        <div class="panel bottom-right"><InstrumentPanel Label="GPS position"><span class="position">@State.Latitude<br />@State.Longitude</span></InstrumentPanel></div>
+        <div class="range-readout">RANGE <strong>@State.RangeNauticalMiles.ToString("0.#", CultureInfo.InvariantCulture) NM</strong><span>HEAD UP</span></div>
+        <div class="radar-menu" @onkeydown="HandleMenuKeyDown">
+            <button type="button" class="menu-toggle" aria-expanded="@menuOpen.ToString().ToLowerInvariant()" @onclick="ToggleMenu">Menu <span aria-hidden="true">▾</span></button>
+            @if (menuOpen)
+            {
+                <div class="menu-options" aria-label="Radar options">
+                    <button type="button" @onclick='() => SelectOption("Drop EBL/VRM")'>Drop EBL/VRM</button>
+                    <button type="button" @onclick='() => SelectOption("Acquire Target")'>Acquire Target</button>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="menu-status" role="status">@menuStatus</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public RadarState State { get; set; } = default!;
+
+    private bool menuOpen;
+    private string? menuStatus;
+
+    private void ToggleMenu() => menuOpen = !menuOpen;
+
+    private void HandleMenuKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            menuOpen = false;
+        }
+    }
+
+    private void SelectOption(string option)
+    {
+        menuOpen = false;
+        menuStatus = $"{option} is not available in this demo yet.";
+    }
+
+    private string ContactTransform(RadarContact contact)
+    {
+        var angle = contact.RelativeBearingDegrees * Math.PI / 180;
+        var distance = contact.RangeNauticalMiles / State.RangeNauticalMiles * 328;
+        var x = 400 + distance * Math.Sin(angle);
+        var y = 400 - distance * Math.Cos(angle);
+        return FormattableString.Invariant($"translate({x:0.##} {y:0.##})");
+    }
+}

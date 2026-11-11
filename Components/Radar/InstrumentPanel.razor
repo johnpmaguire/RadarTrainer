@@ -1,0 +1,9 @@
+<div class="instrument-panel">
+    <div class="instrument-label">@Label</div>
+    <div class="instrument-reading">@ChildContent</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public RenderFragment ChildContent { get; set; } = default!;
+}
