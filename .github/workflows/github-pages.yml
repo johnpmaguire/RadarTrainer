@@ -1,0 +1,51 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [Main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+      - name: Set application base path
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: |
+          grep -Fq '<base href="/" />' wwwroot/index.html
+          sed -i "s|<base href=\"/\" />|<base href=\"${BASE_PATH%/}/\" />|" wwwroot/index.html
+      - name: Publish
+        run: dotnet publish RadarTrainer.csproj -c Release -o "$RUNNER_TEMP/radartrainer-publish"
+      - name: Add client-side routing fallback
+        run: cp "$RUNNER_TEMP/radartrainer-publish/wwwroot/index.html" "$RUNNER_TEMP/radartrainer-publish/wwwroot/404.html"
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/radartrainer-publish/wwwroot
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
