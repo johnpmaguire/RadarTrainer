@@ -1,0 +1,207 @@
+@page "/setup"
+@layout FullScreenLayout
+@implements IDisposable
+@using System.Globalization
+
+<PageTitle>Setup - Radar Trainer</PageTitle>
+
+<div class="setup">
+    <h1 class="visually-hidden">Radar setup</h1>
+    <div class="workspace @(selected is null ? "" : "with-context")">
+        <nav class="tool-rail" aria-label="Radar controls">
+            @foreach (var tool in tools)
+            {
+                <button type="button" class="@(selected == tool.Key ? "tool selected" : "tool")" aria-pressed="@((selected == tool.Key).ToString().ToLowerInvariant())" @onclick="() => Select(tool.Key)">
+                    <span class="tool-glyph" aria-hidden="true">@tool.Glyph</span>
+                    <span class="tool-label">@Label(tool.Key)</span>
+                </button>
+            }
+        </nav>
+
+        <section class="radar-area" aria-label="Radar display">
+            <svg class="scope" viewBox="0 0 800 800" role="img" aria-label="Head-up radar display">
+                <circle class="ring outer" cx="400" cy="400" r="300" />
+                <circle class="ring" cx="400" cy="400" r="150" />
+                <line class="heading" x1="400" y1="400" x2="400" y2="100" />
+                @for (var bearing = 0; bearing < 360; bearing += 30)
+                {
+                    var radians = bearing * Math.PI / 180;
+                    var x = 400 + 335 * Math.Sin(radians);
+                    var y = 400 - 335 * Math.Cos(radians);
+                    <g transform="@FormattableString.Invariant($"translate({x:0.#} {y:0.#})")">
+                        <g><text class="bearing" text-anchor="middle" dominant-baseline="middle">@bearing</text></g>
+                    </g>
+                }
+            </svg>
+            <div class="scope-readout"><span>RANGE A</span><span>6<small> nm</small> RINGS</span><strong>12<small> nm</small></strong><span>H-UP</span></div>
+        </section>
+
+        @if (selected is not null)
+        {
+            <aside class="context" aria-label="@CurrentTool.Title settings">
+                <header class="context-header"><span aria-hidden="true">@CurrentTool.Glyph</span><h2>@CurrentTool.Title</h2></header>
+                @if (CurrentTool.Kind == ToolKind.Level)
+                {
+                    <div class="level-body">
+                        <div class="level-main">
+                            <div class="level-value">@LevelText</div>
+                            <div class="slider-row">
+                                <div class="scale" aria-hidden="true">
+                                    @for (var step = 10; step >= 0; step--)
+                                    {
+                                        <span>@(step * 10)%</span>
+                                    }
+                                </div>
+                                <input class="slider" type="range" min="0" max="100" step="1" value="@Level" aria-label="@CurrentTool.Title level" @oninput="OnSlide" />
+                            </div>
+                        </div>
+                        <div class="actions">
+                            <button type="button" @onclick="() => Adjust(5)">Up</button>
+                            <button type="button" @onclick="() => Adjust(-5)">Down</button>
+                            @if (selected == "gain")
+                            {
+                                @foreach (var mode in gainModes)
+                                {
+                                    <button type="button" class="@(gainMode == mode ? "active" : null)" @onclick="() => gainMode = mode">@mode</button>
+                                }
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="options">
+                        @foreach (var option in options[selected])
+                        {
+                            <button type="button" class="@(choices[selected] == option ? "active" : null)" aria-pressed="@((choices[selected] == option).ToString().ToLowerInvariant())" @onclick="() => choices[selected] = option">@option</button>
+                        }
+                    </div>
+                }
+                <button type="button" class="back" @onclick="Back"><span aria-hidden="true">‹</span> Back</button>
+            </aside>
+        }
+    </div>
+
+    <nav class="bottom-bar" aria-label="Main menu">
+        <div class="clock" role="timer" aria-label="Time">@now.ToString("hh:mm tt", CultureInfo.InvariantCulture)</div>
+        <button type="button">Waypoints</button>
+        <button type="button">Info</button>
+        <button type="button">Where To</button>
+        <a class="home" href="">Home</a>
+        <button type="button">Menu</button>
+        <button type="button">Mark</button>
+        <button type="button" class="sos">SOS</button>
+    </nav>
+</div>
+
+@code {
+    private enum ToolKind { Level, Choice }
+
+    private sealed record Tool(string Key, string Title, string Glyph, ToolKind Kind);
+
+    private readonly Tool[] tools =
+    [
+        new("xmit", "Transmit", "◉", ToolKind.Choice),
+        new("gain", "Gain", "◠", ToolKind.Level),
+        new("sea", "Sea Clutter", "≈", ToolKind.Level),
+        new("rain", "Rain Clutter", "☂", ToolKind.Level),
+        new("trails", "Echo Trails", "➶", ToolKind.Choice),
+        new("mscope", "M-Scope", "◎", ToolKind.Choice)
+    ];
+
+    private readonly string[] gainModes = ["Auto Bird", "Auto High", "Auto Low"];
+
+    private readonly Dictionary<string, string[]> options = new()
+    {
+        ["xmit"] = ["On", "Off"],
+        ["trails"] = ["Off", "Short", "Medium", "Long"],
+        ["mscope"] = ["On", "Off"]
+    };
+
+    private readonly Dictionary<string, string> choices = new()
+    {
+        ["xmit"] = "On",
+        ["trails"] = "Off",
+        ["mscope"] = "Off"
+    };
+
+    private readonly Dictionary<string, int> levels = new()
+    {
+        ["gain"] = 76,
+        ["sea"] = 44,
+        ["rain"] = 0
+    };
+
+    private readonly CancellationTokenSource cancellation = new();
+    private string? selected;
+    private string gainMode = "Manual";
+    private DateTime now = DateTime.Now;
+
+    private Tool CurrentTool => tools.First(t => t.Key == selected);
+    private int Level => levels[selected!];
+    private string LevelText => selected == "gain" && gainMode != "Manual" ? gainMode : selected == "rain" && Level == 0 ? "Off" : $"{Level}%";
+
+    private string Label(string key) => key switch
+    {
+        "xmit" => $"Xmit {choices[key]}",
+        "gain" => gainMode == "Manual" ? $"{levels[key]}%" : gainMode,
+        "sea" => $"{levels[key]}%",
+        "rain" => levels[key] == 0 ? "Off" : $"{levels[key]}%",
+        "trails" => $"Trails {choices[key]}",
+        _ => "M-Scope"
+    };
+
+    private void Select(string key) => selected = selected == key ? null : key;
+    private void Back() => selected = null;
+
+    private void Adjust(int delta)
+    {
+        SetLevel(Level + delta);
+        if (selected == "gain")
+        {
+            gainMode = "Manual";
+        }
+    }
+
+    private void OnSlide(ChangeEventArgs args)
+    {
+        if (int.TryParse(args.Value?.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out var value))
+        {
+            SetLevel(value);
+            if (selected == "gain")
+            {
+                gainMode = "Manual";
+            }
+        }
+    }
+
+    private void SetLevel(int value) => levels[selected!] = Math.Clamp(value, 0, 100);
+
+    protected override void OnInitialized() => _ = UpdateClockAsync(cancellation.Token);
+
+    private async Task UpdateClockAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                var current = DateTime.Now;
+                if (current.Minute != now.Minute)
+                {
+                    now = current;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+}
