@@ -1,0 +1,25 @@
+.instrument-panel {
+    box-sizing: border-box;
+    min-height: 100%;
+    padding: 1.8cqw 2cqw;
+    border: 1px solid #24445b;
+    border-radius: 0.6cqw;
+    background: rgba(5, 17, 26, 0.94);
+}
+
+.instrument-label {
+    color: #86a7b6;
+    font-size: clamp(0.55rem, 1.55cqw, 0.75rem);
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.instrument-reading {
+    margin-top: 0.5cqw;
+    color: #e6f5f5;
+    font-size: clamp(0.85rem, 3.1cqw, 1.55rem);
+    font-weight: 650;
+    line-height: 1.15;
+    white-space: nowrap;
+}
