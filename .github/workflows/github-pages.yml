@@ -25,6 +25,8 @@ jobs:
       - name: Configure Pages
         id: pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - name: Set application base path
         env:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}
