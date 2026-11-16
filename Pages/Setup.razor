@@ -7,7 +7,7 @@
 
 <div class="setup">
     <h1 class="visually-hidden">Radar setup</h1>
-    <div class="workspace @(selected is null ? "" : "with-context")">
+    <div class="workspace @(selected is null && menu is null ? "" : "with-context")">
         <nav class="tool-rail" aria-label="Radar controls">
             @foreach (var tool in tools)
             {
@@ -36,7 +36,33 @@
             <div class="scope-readout"><span>RANGE A</span><span>6<small> nm</small> RINGS</span><strong>12<small> nm</small></strong><span>H-UP</span></div>
         </section>
 
-        @if (selected is not null)
+        @if (menu is not null)
+        {
+            <aside class="context" aria-label="Radar menu">
+                @if (menu == RootMenu)
+                {
+                    <header class="context-header"><h2>Radar Menu</h2></header>
+                    <div class="menu-list">
+                        <button type="button" class="menu-item" @onclick="ToggleTransmit"><span class="menu-icon" aria-hidden="true">◉</span><span class="menu-label">@(choices["xmit"] == "On" ? "Radar To Standby" : "Radar To Transmit")</span></button>
+                        <button type="button" class="menu-item" @onclick="OpenGain"><span>Gain</span><span class="menu-value">@(gainMode == "Manual" ? $"{levels["gain"]}%" : gainMode)</span></button>
+                        @foreach (var item in subMenus)
+                        {
+                            <button type="button" class="menu-item" @onclick="() => menu = item"><span>@item</span><span class="chevron" aria-hidden="true">›</span></button>
+                        }
+                        <div class="menu-spacer"></div>
+                        <button type="button" class="menu-item" @onclick="() => menu = EditOverlays"><span>@EditOverlays</span><span class="chevron" aria-hidden="true">›</span></button>
+                    </div>
+                    <button type="button" class="back" @onclick="CloseMenu"><span aria-hidden="true">‹</span> Back</button>
+                }
+                else
+                {
+                    <header class="context-header"><h2>@menu</h2></header>
+                    <div class="menu-list"></div>
+                    <button type="button" class="back" @onclick="() => menu = RootMenu"><span aria-hidden="true">‹</span> Back</button>
+                }
+            </aside>
+        }
+        else if (selected is not null)
         {
             <aside class="context" aria-label="@CurrentTool.Title settings">
                 <header class="context-header"><span aria-hidden="true">@CurrentTool.Glyph</span><h2>@CurrentTool.Title</h2></header>
@@ -88,7 +114,7 @@
         <button type="button">Info</button>
         <button type="button">Where To</button>
         <a class="home" href="">Home</a>
-        <button type="button">Menu</button>
+        <button type="button" aria-pressed="@((menu is not null).ToString().ToLowerInvariant())" @onclick="ToggleMenu">Menu</button>
         <button type="button">Mark</button>
         <button type="button" class="sos">SOS</button>
     </nav>
@@ -133,6 +159,10 @@
     };
 
     private readonly CancellationTokenSource cancellation = new();
+    private const string RootMenu = "Radar Menu";
+    private const string EditOverlays = "Edit Overlays";
+    private readonly string[] subMenus = ["Radar Filters", "Radar Options", "Radar Setup", "Layers"];
+    private string? menu;
     private string? selected;
     private string gainMode = "Manual";
     private DateTime now = DateTime.Now;
@@ -151,8 +181,29 @@
         _ => "M-Scope"
     };
 
-    private void Select(string key) => selected = selected == key ? null : key;
+    private void Select(string key)
+    {
+        menu = null;
+        selected = selected == key ? null : key;
+    }
+
     private void Back() => selected = null;
+
+    private void ToggleMenu()
+    {
+        selected = null;
+        menu = menu is null ? RootMenu : null;
+    }
+
+    private void CloseMenu() => menu = null;
+
+    private void ToggleTransmit() => choices["xmit"] = choices["xmit"] == "On" ? "Off" : "On";
+
+    private void OpenGain()
+    {
+        menu = null;
+        selected = "gain";
+    }
 
     private void Adjust(int delta)
     {
