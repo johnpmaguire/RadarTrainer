@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="session-state\**" />
+    <Content Remove="session-state\**" />
+    <EmbeddedResource Remove="session-state\**" />
+    <None Remove="session-state\**" />
     <None Include="session-state\files\acquire-check\Check.csproj" />
     <None Include="session-state\files\marpa-check\MarpaCheck.csproj" />
     <None Include="session-state\files\marpa-cpa-check\Check.csproj" />
