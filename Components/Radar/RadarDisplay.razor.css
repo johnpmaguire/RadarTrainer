@@ -35,6 +35,12 @@
 .contact-return { fill: #f9d66b; stroke: #fff3b1; stroke-width: 1.5; }
 .contact-label { fill: #e8d494; font-size: 14px; }
 .own-vessel { fill: #e6f6f1; stroke: #0c3036; stroke-width: 1; }
+.ebl-line { stroke: #b6d6d3; stroke-width: 2; pointer-events: none; }
+.ebl-line-hit { stroke: transparent; stroke-width: 16; cursor: pointer; }
+.ebl-handle { fill: transparent; stroke: #b6d6d3; stroke-width: 2; cursor: grab; touch-action: none; }
+.ebl.selected .ebl-line, .ebl.selected .ebl-handle { stroke: #f9d66b; }
+.ebl-handle:active { cursor: grabbing; }
+.ebl-handle:focus-visible { outline: none; stroke: #fff3b1; stroke-width: 4; }
 
 .panel { position: absolute; width: 21%; }
 .top-left { top: 2%; left: 2%; }
@@ -69,6 +75,21 @@
 .menu-toggle:hover, .menu-options button:hover { background: #286281; }
 .menu-toggle:focus-visible, .menu-options button:focus-visible { outline: 2px solid #f9d66b; outline-offset: -2px; }
 .menu-status:not(:empty) { padding: 0.7rem 0.25rem 0.15rem; color: #d3eae6; font-size: 0.85rem; }
+
+.ebl-readout {
+    position: absolute;
+    top: 20%;
+    right: 2%;
+    padding: 0.7cqw 1cqw;
+    background: rgba(5, 17, 26, 0.94);
+    color: #8fb0bb;
+    font-size: clamp(0.55rem, 1.5cqw, 0.75rem);
+    font-weight: 700;
+    line-height: 1.6;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.ebl-readout strong { color: #f9d66b; }
 
 .range-readout {
     position: absolute;

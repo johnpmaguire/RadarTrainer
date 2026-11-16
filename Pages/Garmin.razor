@@ -1,0 +1,146 @@
+@page "/garmin"
+@using System.Globalization
+@using RadarTrainer.Models
+@using RadarTrainer.Services
+
+<PageTitle>Garmin - Radar Trainer</PageTitle>
+
+<main class="garmin-page">
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">RADAR TRAINER / SIMULATOR</p>
+            <h1>Garmin</h1>
+            <p>Explore a chart-style radar display using the touch controls.</p>
+        </div>
+        <span class="training-badge">SIMULATED DISPLAY</span>
+    </div>
+
+    <section class="device" aria-label="Garmin-inspired radar simulator">
+        <div class="device-top"><span>RADAR OVERLAY</span><span>HEAD UP <b>•</b> @Status</span></div>
+        <div class="display-layout">
+            <div class="chart-area">
+                <svg class="chart" viewBox="0 0 1000 700" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Schematic head-up chart with own vessel and simulated radar contacts">
+                    <rect width="1000" height="700" fill="#64c6db" />
+                    <g transform="@ChartTransform">
+                        <path class="deep-water" d="M 0 0 H 1000 V 700 H 0 Z" />
+                        <path class="shallow-water" d="M -120 -60 C 60 -40 130 40 170 150 C 212 266 215 389 254 507 C 280 587 299 670 310 760 H -120 Z" />
+                        <path class="land" d="M -80 -70 H 105 C 122 42 150 113 165 205 C 180 298 170 410 215 515 C 245 585 259 667 265 770 H -80 Z" />
+                        <path class="shore" d="M 105 -70 C 122 42 150 113 165 205 C 180 298 170 410 215 515 C 245 585 259 667 265 770" />
+                        <path class="shallow-water" d="M 625 -60 C 672 40 728 46 780 69 C 833 91 850 176 854 246 C 861 324 820 363 777 345 C 735 328 717 270 676 246 C 637 223 593 192 588 133 C 582 67 601 0 625 -60 Z" />
+                        <path class="land island" d="M 640 -60 C 682 37 719 39 764 65 C 804 88 817 157 821 222 C 826 280 810 315 781 303 C 749 290 738 242 698 217 C 661 194 619 174 617 126 C 615 63 626 0 640 -60 Z" />
+                        <path class="shallow-water" d="M 365 -30 C 416 7 443 44 482 58 C 517 70 550 54 568 76 C 582 94 570 131 537 139 C 494 148 446 127 413 112 C 373 94 342 52 327 -30 Z" />
+                        <path class="land" d="M 382 -30 C 421 5 448 33 481 42 C 516 52 544 43 550 72 C 554 91 538 108 510 109 C 468 108 438 90 409 76 C 381 62 361 20 352 -30 Z" />
+                        <path class="contour" d="M 125 -30 C 160 110 190 190 193 300 C 196 420 252 521 280 730 M 147 -30 C 185 104 217 201 219 302 C 223 423 280 519 312 730 M 858 -30 C 876 60 898 140 882 241 C 866 340 810 391 741 378 M 882 -30 C 903 70 925 155 906 252 C 886 355 822 418 738 404" />
+                        @if (transmitting)
+                        {
+                            <g class="land-returns">
+                                <path d="M 104 -20 C 123 75 153 129 163 212 C 174 300 168 385 206 473" />
+                                <path d="M 404 24 C 435 59 474 74 512 86 L 542 79" />
+                                <path d="M 770 92 C 790 129 801 180 803 225" />
+                            </g>
+                        }
+                    </g>
+                    @if (ringsVisible)
+                    {
+                        <g class="range-rings">
+                            <circle cx="500" cy="350" r="72.5" />
+                            <circle cx="500" cy="350" r="145" />
+                            <circle cx="500" cy="350" r="217.5" />
+                            <circle cx="500" cy="350" r="290" />
+                        </g>
+                    }
+                    <line class="heading-line" x1="500" y1="350" x2="500" y2="60" />
+                    @if (transmitting)
+                    {
+                        @foreach (var contact in scenario.Contacts.Where(c => c.RangeNauticalMiles <= Range))
+                        {
+                            <g transform="@ContactTransform(contact)">
+                                <circle class="return-halo" r="16" />
+                                <circle class="radar-return" r="7" />
+                                @if (labelsVisible)
+                                {
+                                    <g><text class="contact-label" x="12" y="-12">@contact.Name</text></g>
+                                }
+                            </g>
+                        }
+                    }
+                    <path class="vessel" d="M 500 334 L 490 366 L 500 361 L 510 366 Z" />
+                </svg>
+
+                <div class="chart-status"><strong>RADAR</strong><span>@Status</span></div>
+                <div class="zoom-controls" aria-label="Radar range">
+                    <button type="button" @onclick="ZoomIn" disabled="@(rangeIndex == 0)" aria-label="Decrease radar range">+</button>
+                    <button type="button" @onclick="ZoomOut" disabled="@(rangeIndex == ranges.Length - 1)" aria-label="Increase radar range">−</button>
+                </div>
+                <div class="chart-readout"><strong>@Range.ToString("0.#", CultureInfo.InvariantCulture) NM</strong><span>RINGS @(ringsVisible ? (Range / 4).ToString("0.##", CultureInfo.InvariantCulture) + " NM" : "OFF")</span><span>HEAD UP</span></div>
+                @if (!transmitting)
+                {
+                    <div class="standby-message">RADAR STANDBY</div>
+                }
+            </div>
+            <aside class="data-panel" aria-label="Simulated vessel data">
+                <div><span>GPS Speed</span><strong>@scenario.Speed<small> kn</small></strong></div>
+                <div><span>GPS Heading</span><strong>@scenario.Heading°<small> T</small></strong></div>
+                <div><span>Water Temp.</span><strong>--<small> °C</small></strong></div>
+                <div><span>Depth</span><strong>@scenario.Depth<small> m</small></strong></div>
+                <div class="position"><span>GPS Position</span><strong>@scenario.Latitude<br />@scenario.Longitude</strong></div>
+            </aside>
+        </div>
+        <div class="device-bottom">
+            <a href="" class="bottom-link">⌂ <span>Home</span></a>
+            <div class="bottom-summary"><strong>@Range.ToString("0.#", CultureInfo.InvariantCulture) NM</strong><span>Radar overlay</span></div>
+            <button type="button" class="bottom-menu" aria-expanded="@menuOpen.ToString().ToLowerInvariant()" aria-controls="garmin-menu" @onclick="ToggleMenu">☰ <span>Menu</span></button>
+        </div>
+        @if (menuOpen)
+        {
+            <div id="garmin-menu" class="touch-menu" @onkeydown="HandleMenuKeyDown">
+                <div class="menu-heading"><strong>Radar menu</strong><button type="button" @onclick="ToggleMenu" aria-label="Close radar menu">×</button></div>
+                <button type="button" @onclick="ToggleTransmit"><span>Radar transmission</span><strong>@Status</strong></button>
+                <button type="button" @onclick="ToggleRings"><span>Range rings</span><strong>@(ringsVisible ? "On" : "Off")</strong></button>
+                <button type="button" @onclick="ToggleLabels"><span>Contact labels</span><strong>@(labelsVisible ? "On" : "Off")</strong></button>
+                <button type="button" @onclick="Reset"><span>Reset display</span><strong>↺</strong></button>
+            </div>
+        }
+    </section>
+    <p class="notice">Training only. The chart, radar returns and vessel data are simulated; this is not a navigation tool. Use + and − to change range, or Menu to adjust the display.</p>
+</main>
+
+@code {
+    private readonly RadarState scenario = DemoScenario.Create();
+    private readonly double[] ranges = [1, 2, 4, 8];
+    private int rangeIndex = 2;
+    private bool menuOpen;
+    private bool transmitting = true;
+    private bool ringsVisible = true;
+    private bool labelsVisible = true;
+    private double Range => ranges[rangeIndex];
+    private string Status => transmitting ? "Transmitting" : "Standby";
+    private string ChartTransform => FormattableString.Invariant($"translate(500 350) scale({4 / Range:0.###}) translate(-500 -350)");
+
+    private string ContactTransform(RadarContact contact)
+    {
+        var angle = contact.RelativeBearingDegrees * Math.PI / 180;
+        var distance = contact.RangeNauticalMiles / Range * 290;
+        return FormattableString.Invariant($"translate({500 + distance * Math.Sin(angle):0.##} {350 - distance * Math.Cos(angle):0.##})");
+    }
+
+    private void ZoomIn() => rangeIndex = Math.Max(0, rangeIndex - 1);
+    private void ZoomOut() => rangeIndex = Math.Min(ranges.Length - 1, rangeIndex + 1);
+    private void ToggleMenu() => menuOpen = !menuOpen;
+    private void ToggleTransmit() => transmitting = !transmitting;
+    private void ToggleRings() => ringsVisible = !ringsVisible;
+    private void ToggleLabels() => labelsVisible = !labelsVisible;
+    private void HandleMenuKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape") menuOpen = false;
+    }
+
+    private void Reset()
+    {
+        rangeIndex = 2;
+        transmitting = true;
+        ringsVisible = true;
+        labelsVisible = true;
+        menuOpen = false;
+    }
+}

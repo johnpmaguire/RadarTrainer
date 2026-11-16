@@ -1,36 +1,11 @@
-﻿@page "/"
-@using System.Globalization
-@using RadarTrainer.Components.Radar
-@using RadarTrainer.Services
+@page "/"
 
-<PageTitle>Radar Trainer</PageTitle>
+<PageTitle>Home - Radar Trainer</PageTitle>
 
-<main class="page">
-    <header>
-        <div class="eyebrow">Yachtmaster theory · Training demo</div>
-        <h1>Radar trainer</h1>
-        <p class="intro">A simple introduction to reading a radar display, using a simulated view from your vessel.</p>
-    </header>
-
-    <div class="demo-layout">
-        <RadarDisplay State="scenario" />
-        <section class="details" aria-labelledby="scenario-title">
-            <div class="demo-badge">Static demonstration</div>
-            <h2 id="scenario-title">On the screen</h2>
-            <p>Your vessel is at the centre, with its heading pointing up. The rings divide the display into one-nautical-mile intervals.</p>
-            <h2>Simulated contacts</h2>
-            <p>Bearings are relative to the vessel's heading.</p>
-            <ul class="contact-list">
-                @foreach (var contact in scenario.Contacts)
-                {
-                    <li><span><span class="contact-key" aria-hidden="true"></span>@contact.Name</span><span>@contact.RelativeBearingDegrees.ToString("000", CultureInfo.InvariantCulture)° · @contact.RangeNauticalMiles.ToString("0.0", CultureInfo.InvariantCulture) NM</span></li>
-                }
-            </ul>
-            <p class="notice">For training only. This is a simplified illustration, not a navigation tool.</p>
-        </section>
-    </div>
+<main class="placeholder-page">
+    <h1>Radar Trainer</h1>
+    <p>Welcome to Radar Trainer. Choose an exercise from the navigation above.</p>
+    <p><a href="radar-basics">Try Radar Basics</a> to practise measuring the range and bearing of simulated contacts.</p>
+    <p><a href="marpa">Explore the MARPA scenario</a> to observe a moving contact.</p>
+    <p><a href="garmin">Open Garmin</a> for a touch-controlled, chart-style radar display.</p>
 </main>
-
-@code {
-    private readonly RadarTrainer.Models.RadarState scenario = DemoScenario.Create();
-}

@@ -1,9 +1,11 @@
 @using System.Globalization
 @using RadarTrainer.Models
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 <div class="radar-frame">
     <div class="radar-screen">
-        <svg class="radar-scope" viewBox="0 0 800 800" role="img" aria-label="Head-up radar display with four range rings and simulated contacts. Contact details are listed below the display.">
+        <svg @ref="scope" class="radar-scope" viewBox="0 0 800 800" role="group" aria-label="Head-up radar display with four range rings and simulated contacts." @onclick="DeselectEbl">
             <circle class="scope-background" cx="400" cy="400" r="328" />
             <circle class="range-ring" cx="400" cy="400" r="82" />
             <circle class="range-ring" cx="400" cy="400" r="164" />
@@ -13,7 +15,7 @@
             <line class="cross-line" x1="400" y1="72" x2="400" y2="728" />
             <line class="heading-line" x1="400" y1="400" x2="400" y2="72" />
             <path class="heading-marker" d="M 400 62 L 393 48 L 407 48 Z" />
-            <text class="scope-label" x="400" y="39" text-anchor="middle">HDG</text>
+            <text class="scope-label" x="400" y="39" text-anchor="middle">@State.Heading°</text>
             @foreach (var contact in State.Contacts)
             {
                 <g transform="@ContactTransform(contact)">
@@ -23,6 +25,16 @@
                 </g>
             }
             <path class="own-vessel" d="M 400 388 L 393 410 L 400 406 L 407 410 Z" />
+            @if (eblVisible)
+            {
+                <g class="@(eblSelected ? "ebl selected" : "ebl")" @onclick="SelectEbl" @onclick:stopPropagation="true">
+                    <line class="ebl-line" x1="400" y1="400" x2="@SvgValue(EblEdgeX)" y2="@SvgValue(EblEdgeY)" />
+                    <line class="ebl-line-hit" x1="400" y1="400" x2="@SvgValue(EblEdgeX)" y2="@SvgValue(EblEdgeY)" />
+                    <circle class="ebl-handle" cx="@SvgValue(EblX)" cy="@SvgValue(EblY)" r="10" tabindex="0" role="button"
+                            aria-label="EBL/VRM marker. Use arrow keys to move it."
+                            @onkeydown="HandleEblKeyDown" />
+                </g>
+            }
         </svg>
 
         <div class="panel top-left"><InstrumentPanel Label="GPS speed">@State.Speed <span class="unit">kn</span></InstrumentPanel></div>
@@ -30,13 +42,17 @@
         <div class="panel bottom-left"><InstrumentPanel Label="Depth">@State.Depth <span class="unit">m</span></InstrumentPanel></div>
         <div class="panel bottom-right"><InstrumentPanel Label="GPS position"><span class="position">@State.Latitude<br />@State.Longitude</span></InstrumentPanel></div>
         <div class="range-readout">RANGE <strong>@State.RangeNauticalMiles.ToString("0.#", CultureInfo.InvariantCulture) NM</strong><span>HEAD UP</span></div>
+        @if (eblVisible)
+        {
+            <div class="ebl-readout" aria-live="polite">EBL <strong>@BearingText° T</strong><br />VRM <strong>@RangeText NM</strong></div>
+        }
         <div class="radar-menu" @onkeydown="HandleMenuKeyDown">
             <button type="button" class="menu-toggle" aria-expanded="@menuOpen.ToString().ToLowerInvariant()" @onclick="ToggleMenu">Menu <span aria-hidden="true">▾</span></button>
             @if (menuOpen)
             {
                 <div class="menu-options" aria-label="Radar options">
-                    <button type="button" @onclick='() => SelectOption("Drop EBL/VRM")'>Drop EBL/VRM</button>
-                    <button type="button" @onclick='() => SelectOption("Acquire Target")'>Acquire Target</button>
+                    <button type="button" @onclick="DropEbl">Drop EBL/VRM</button>
+                    <button type="button" @onclick="AcquireTarget">Acquire Target</button>
                 </div>
             }
         </div>
@@ -46,9 +62,39 @@
 
 @code {
     [Parameter, EditorRequired] public RadarState State { get; set; } = default!;
+    [Parameter] public EventCallback<(double RelativeBearing, double Range)> OnAcquireTarget { get; set; }
 
+    private const double ScopeCenter = 400;
+    private const double ScopeRadius = 328;
+    private ElementReference scope;
+    private IJSObjectReference? module;
+    private IJSObjectReference? dragHandler;
+    private DotNetObjectReference<RadarDisplay>? selfReference;
     private bool menuOpen;
     private string? menuStatus;
+    private bool eblVisible;
+    private bool eblSelected;
+    private double eblRelativeBearing = 315;
+    private double eblDistance = ScopeRadius / 2;
+
+    private double EblRadians => eblRelativeBearing * Math.PI / 180;
+    private double EblX => ScopeCenter + eblDistance * Math.Sin(EblRadians);
+    private double EblY => ScopeCenter - eblDistance * Math.Cos(EblRadians);
+    private double EblEdgeX => ScopeCenter + ScopeRadius * Math.Sin(EblRadians);
+    private double EblEdgeY => ScopeCenter - ScopeRadius * Math.Cos(EblRadians);
+    private string BearingText => (((int)Math.Round((double.Parse(State.Heading, CultureInfo.InvariantCulture) + eblRelativeBearing) % 360, MidpointRounding.AwayFromZero) + 360) % 360).ToString("000", CultureInfo.InvariantCulture);
+    private string RangeText => (eblDistance / ScopeRadius * State.RangeNauticalMiles).ToString("0.00", CultureInfo.InvariantCulture);
+    private static string SvgValue(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/radar-drag.js");
+            selfReference = DotNetObjectReference.Create(this);
+            dragHandler = await module.InvokeAsync<IJSObjectReference>("attach", scope, selfReference);
+        }
+    }
 
     private void ToggleMenu() => menuOpen = !menuOpen;
 
@@ -60,10 +106,80 @@
         }
     }
 
-    private void SelectOption(string option)
+    private void DropEbl()
     {
         menuOpen = false;
-        menuStatus = $"{option} is not available in this demo yet.";
+        menuStatus = null;
+        eblVisible = true;
+        eblSelected = true;
+        eblRelativeBearing = 315;
+        eblDistance = ScopeRadius / 2;
+    }
+
+    private void SelectEbl() => eblSelected = true;
+    private void DeselectEbl() => eblSelected = false;
+
+    [JSInvokable]
+    public void MoveEbl(double x, double y)
+    {
+        if (!eblVisible || !double.IsFinite(x) || !double.IsFinite(y))
+        {
+            return;
+        }
+
+        var dx = x - ScopeCenter;
+        var dy = y - ScopeCenter;
+        eblDistance = Math.Min(Math.Sqrt(dx * dx + dy * dy), ScopeRadius);
+        if (eblDistance > 0)
+        {
+            eblRelativeBearing = (Math.Atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+        }
+        eblSelected = true;
+        StateHasChanged();
+    }
+
+    private void HandleEblKeyDown(KeyboardEventArgs args)
+    {
+        const double step = 4;
+        switch (args.Key)
+        {
+            case "ArrowUp": MoveEbl(EblX, EblY - step); break;
+            case "ArrowDown": MoveEbl(EblX, EblY + step); break;
+            case "ArrowLeft": MoveEbl(EblX - step, EblY); break;
+            case "ArrowRight": MoveEbl(EblX + step, EblY); break;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (dragHandler is not null)
+        {
+            await dragHandler.InvokeVoidAsync("dispose");
+            await dragHandler.DisposeAsync();
+        }
+        selfReference?.Dispose();
+        if (module is not null)
+        {
+            await module.DisposeAsync();
+        }
+    }
+
+    private async Task AcquireTarget()
+    {
+        menuOpen = false;
+        if (!OnAcquireTarget.HasDelegate)
+        {
+            menuStatus = "Acquire Target is not available in this demo yet.";
+        }
+        else if (!eblVisible)
+        {
+            menuStatus = "Drop EBL/VRM and position its circle on the contact first.";
+        }
+        else
+        {
+            menuStatus = null;
+            await OnAcquireTarget.InvokeAsync((eblRelativeBearing, eblDistance / ScopeRadius * State.RangeNauticalMiles));
+        }
     }
 
     private string ContactTransform(RadarContact contact)

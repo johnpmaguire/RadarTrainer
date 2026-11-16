@@ -1,0 +1,35 @@
+﻿@page "/radar-basics"
+@using RadarTrainer.Components.Radar
+@using RadarTrainer.Services
+
+<PageTitle>Radar Basics - Radar Trainer</PageTitle>
+
+<main class="page">
+    <header>
+        <h1 class="visually-hidden">Radar Basics</h1>
+        <p class="intro">A simple introduction to reading a radar display, using a simulated view from your vessel.</p>
+    </header>
+
+    <div class="demo-layout">
+        <RadarDisplay State="scenario" />
+        <section class="details" aria-labelledby="scenario-title">
+            <div class="demo-badge">Static demonstration</div>
+            <h2 id="scenario-title">On the screen</h2>
+            <p>Your vessel is at the centre, with its heading pointing up. The rings divide the display into one-nautical-mile intervals.</p>
+            <h2>EBL/VRM</h2>
+            <p>Choose Menu, then Drop EBL/VRM. Drag the circle, or focus it and use the arrow keys, to measure range and true bearing from your vessel. Select the line to highlight it.</p>
+            <h2>Simulated contacts</h2>
+            <p>For each contact, enter range to two decimal places (e.g. 3.18 NM) and true bearing as three digits (e.g. 003°). Answers within 0.1 NM and 1° are accepted.</p>
+            <div class="contact-grid">
+                @foreach (var contact in scenario.Contacts)
+                {
+                    <ContactQuestion @key="contact" Contact="contact" MaximumRange="scenario.RangeNauticalMiles" Heading="@scenario.Heading" />
+                }
+            </div>
+        </section>
+    </div>
+</main>
+
+@code {
+    private readonly RadarTrainer.Models.RadarState scenario = DemoScenario.Create();
+}

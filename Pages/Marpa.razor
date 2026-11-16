@@ -1,0 +1,135 @@
+@page "/marpa"
+@using System.Diagnostics
+@using System.Globalization
+@using RadarTrainer.Components.Radar
+@using RadarTrainer.Services
+@implements IDisposable
+
+@{
+    var snapshot = MarpaScenario.Create(Elapsed);
+    var contact = snapshot.Radar.Contacts[0];
+}
+
+<PageTitle>MARPA - Radar Trainer</PageTitle>
+
+<main class="page">
+    <h1>MARPA scenario</h1>
+    <p class="intro">A five-minute, real-time encounter with one moving contact.</p>
+    <div class="scenario-layout">
+        <RadarDisplay @key="scenarioVersion" State="@snapshot.Radar" OnAcquireTarget="AcquireTarget" />
+        <section class="details" aria-labelledby="scenario-details">
+            <h2 id="scenario-details">Scenario</h2>
+            <p>Own vessel: course 030° true, speed 4.2 knots. The display is head-up.</p>
+            <p>Depth is fixed; the GPS position is simulated.</p>
+            @if (targetAcquired)
+            {
+                <h2 class="target-heading">Contact A data</h2>
+                <dl class="target-data">
+                    <dt>Range</dt><dd>@contact.RangeNauticalMiles.ToString("0.00", CultureInfo.InvariantCulture) NM</dd>
+                    <dt>Bearing</dt><dd>@FormatBearing(snapshot.TargetTrueBearingDegrees)° T</dd>
+                    <dt>Course</dt><dd>@FormatBearing(snapshot.TargetCourseDegrees)° T</dd>
+                    <dt>Speed</dt><dd>@snapshot.TargetSpeedKnots.ToString("0.0", CultureInfo.InvariantCulture) kn</dd>
+                    <dt>CPA</dt><dd>@(snapshot.CpaNauticalMiles.HasValue ? snapshot.CpaNauticalMiles.Value.ToString("0.00", CultureInfo.InvariantCulture) + " NM" : "Unavailable")</dd>
+                    <dt>Time to CPA</dt><dd>@FormatTcpa(snapshot.TcpaHours)</dd>
+                </dl>
+                <p class="notice">These are ideal simulation values, not MARPA tracking estimates. CPA assumes both vessels maintain their current course and speed.</p>
+            }
+            <p class="acquisition-status" role="status">@acquisitionStatus</p>
+            <div class="clock" role="timer" aria-label="Elapsed scenario time">@Elapsed.ToString(@"mm\:ss") / 05:00</div>
+            <p class="status" role="status">@Status</p>
+            <div class="controls">
+                <button type="button" @onclick="ToggleRunning" disabled="@IsComplete">@(clock.IsRunning ? "Pause" : Elapsed == TimeSpan.Zero ? "Start" : "Resume")</button>
+                <button type="button" @onclick="Reset">Reset</button>
+            </div>
+            <p>Use Menu to drop the EBL/VRM and position its circle within 2° and 0.2 NM of the contact, then choose Acquire Target. Reset clears the acquired target.</p>
+            <p class="notice">For training only. This is a simplified simulation, not a navigation tool.</p>
+        </section>
+    </div>
+</main>
+
+@code {
+    private readonly Stopwatch clock = new();
+    private readonly CancellationTokenSource cancellation = new();
+    private bool targetAcquired;
+    private string? acquisitionStatus;
+    private int scenarioVersion;
+    private TimeSpan Elapsed => clock.Elapsed < MarpaScenario.Duration ? clock.Elapsed : MarpaScenario.Duration;
+    private bool IsComplete => clock.Elapsed >= MarpaScenario.Duration;
+    private string Status => IsComplete ? "Scenario complete." : clock.IsRunning ? "Running" : Elapsed == TimeSpan.Zero ? "Ready to start" : "Paused";
+
+    private static string FormatBearing(double degrees) => ((int)Math.Round(degrees, MidpointRounding.AwayFromZero) % 360).ToString("000", CultureInfo.InvariantCulture);
+
+    private static string FormatTcpa(double? hours)
+    {
+        if (!hours.HasValue)
+        {
+            return "Unavailable (no relative motion)";
+        }
+
+        var seconds = (long)Math.Round(Math.Abs(hours.Value) * 3600, MidpointRounding.AwayFromZero);
+        var time = FormattableString.Invariant($"{seconds / 60:00}:{seconds % 60:00}");
+        return hours.Value < 0 ? $"Passed {time} ago" : $"{time} (min:sec)";
+    }
+
+    protected override void OnInitialized() => _ = UpdateClockAsync(cancellation.Token);
+
+    private async Task UpdateClockAsync(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                await InvokeAsync(() =>
+                {
+                    if (clock.IsRunning)
+                    {
+                        if (IsComplete)
+                        {
+                            clock.Stop();
+                        }
+                        StateHasChanged();
+                    }
+                });
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+    }
+
+    private void ToggleRunning()
+    {
+        if (clock.IsRunning)
+        {
+            clock.Stop();
+        }
+        else if (!IsComplete)
+        {
+            clock.Start();
+        }
+    }
+
+    private void AcquireTarget((double RelativeBearing, double Range) marker)
+    {
+        var currentContact = MarpaScenario.Create(Elapsed).Radar.Contacts[0];
+        targetAcquired = TargetAcquisition.IsWithinTolerance(currentContact, marker.RelativeBearing, marker.Range);
+        acquisitionStatus = targetAcquired
+            ? "Contact A acquired."
+            : "No contact within 2° and 0.2 NM of the EBL/VRM circle. Adjust it and try again.";
+    }
+
+    private void Reset()
+    {
+        clock.Reset();
+        targetAcquired = false;
+        acquisitionStatus = null;
+        scenarioVersion++;
+    }
+
+    public void Dispose()
+    {
+        cancellation.Cancel();
+        cancellation.Dispose();
+    }
+}

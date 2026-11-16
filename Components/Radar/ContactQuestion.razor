@@ -1,0 +1,113 @@
+@using System.Globalization
+@using RadarTrainer.Models
+
+<form class="contact-question" @onsubmit="CheckAnswer" @onsubmit:preventDefault>
+    <h3><span class="contact-key" aria-hidden="true"></span>@Contact.Name</h3>
+    <div class="answer-fields">
+        <label>
+            Range (NM)
+            <input type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 3.85" @bind="rangeAnswer" @bind:event="oninput" @bind:after="ClearRangeFeedback"
+                   class="@(rangeError is null ? null : "incorrect")" aria-invalid="@(rangeError is not null ? "true" : "false")" aria-describedby="@rangeErrorId" />
+            <span class="field-error" id="@rangeErrorId">@rangeError</span>
+        </label>
+        <label>
+            True bearing (°)
+            <input type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 003" @bind="bearingAnswer" @bind:event="oninput" @bind:after="ClearBearingFeedback"
+                   class="@(bearingError is null ? null : "incorrect")" aria-invalid="@(bearingError is not null ? "true" : "false")" aria-describedby="@bearingErrorId" />
+            <span class="field-error" id="@bearingErrorId">@bearingError</span>
+        </label>
+    </div>
+    <button type="submit">Check answer</button>
+    <div class="answer-feedback" role="status">@feedback</div>
+</form>
+
+@code {
+    [Parameter, EditorRequired] public RadarContact Contact { get; set; } = default!;
+    [Parameter, EditorRequired] public double MaximumRange { get; set; }
+    [Parameter, EditorRequired] public string Heading { get; set; } = default!;
+
+    private const decimal RangeTolerance = 0.1m;
+    private const decimal BearingTolerance = 1m;
+    private readonly string rangeErrorId = $"range-error-{Guid.NewGuid():N}";
+    private readonly string bearingErrorId = $"bearing-error-{Guid.NewGuid():N}";
+    private string rangeAnswer = string.Empty;
+    private string bearingAnswer = string.Empty;
+    private string? rangeError;
+    private string? bearingError;
+    private string? feedback;
+
+    private void CheckAnswer()
+    {
+        if (!TryParseRange(rangeAnswer, out var range))
+        {
+            rangeError = "Enter a range with two decimal places, e.g. 3.18.";
+        }
+        else if (range > (decimal)MaximumRange)
+        {
+            rangeError = $"Enter a range between 0 and {MaximumRange.ToString("0.##", CultureInfo.InvariantCulture)} NM.";
+        }
+        else
+        {
+            rangeError = Math.Abs(range - (decimal)Contact.RangeNauticalMiles) <= RangeTolerance ? null : "Range is not quite right.";
+        }
+
+        var bearingText = bearingAnswer.Trim();
+        if (bearingText.Length != 3 || !bearingText.All(IsAsciiDigit))
+        {
+            bearingError = "Enter a three-digit bearing, e.g. 003.";
+        }
+        else if (!int.TryParse(bearingText, NumberStyles.None, CultureInfo.InvariantCulture, out var bearing) || bearing > 360)
+        {
+            bearingError = "Enter a bearing between 000 and 360 degrees.";
+        }
+        else
+        {
+            var trueBearing = (decimal.Parse(Heading, CultureInfo.InvariantCulture) + (decimal)Contact.RelativeBearingDegrees) % 360;
+            trueBearing = (trueBearing + 360) % 360;
+            var difference = Math.Abs((bearing % 360) - trueBearing);
+            difference = Math.Min(difference, 360 - difference);
+            bearingError = difference <= BearingTolerance ? null : "Bearing is not quite right.";
+        }
+
+        feedback = rangeError is null && bearingError is null
+            ? "Correct! Range and bearing are within tolerance."
+            : "Check the highlighted answer and try again.";
+    }
+
+    private static bool TryParseRange(string value, out decimal result)
+    {
+        var text = value.Trim();
+        var decimalSeparator = CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
+        var separatorIndex = text.LastIndexOf('.');
+        var separatorLength = 1;
+        if (separatorIndex < 0 && decimalSeparator != ".")
+        {
+            separatorIndex = text.LastIndexOf(decimalSeparator, StringComparison.Ordinal);
+            separatorLength = decimalSeparator.Length;
+        }
+
+        result = 0;
+        if (separatorIndex <= 0 || text.Length - separatorIndex - separatorLength != 2 ||
+            !text[..separatorIndex].All(IsAsciiDigit) || !text[(separatorIndex + separatorLength)..].All(IsAsciiDigit))
+        {
+            return false;
+        }
+
+        var normalized = text[..separatorIndex] + "." + text[(separatorIndex + separatorLength)..];
+        return decimal.TryParse(normalized, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out result);
+    }
+
+    private static bool IsAsciiDigit(char value) => value >= '0' && value <= '9';
+
+    private void ClearRangeFeedback()
+    {
+        rangeError = null;
+        feedback = null;
+    }
+
+    private void ClearBearingFeedback()
+    {
+        bearingError = null;
+        feedback = null;
+    }
+}

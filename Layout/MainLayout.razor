@@ -1,3 +1,52 @@
 ﻿@inherits LayoutComponentBase
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div @ref="viewportContent" class="viewport-content">
+<header class="site-header">
+    <nav class="site-nav" aria-label="Main navigation">
+        <a class="site-brand" href="" @onclick="CloseMenu">Radar Trainer</a>
+        <button type="button" class="nav-toggle" aria-expanded="@menuOpen.ToString().ToLowerInvariant()" aria-controls="site-links" @onclick="ToggleMenu">Menu</button>
+        <div id="site-links" class="@(menuOpen ? "nav-links open" : "nav-links")">
+            <NavLink href="" Match="NavLinkMatch.All" @onclick="CloseMenu">Home</NavLink>
+            <NavLink href="radar-basics" @onclick="CloseMenu">Radar Basics</NavLink>
+            <NavLink href="marpa" @onclick="CloseMenu">MARPA</NavLink>
+            <NavLink href="garmin" @onclick="CloseMenu">Garmin</NavLink>
+        </div>
+    </nav>
+</header>
 
 @Body
+</div>
+
+@code {
+    private bool menuOpen;
+    private ElementReference viewportContent;
+    private IJSObjectReference? viewportModule;
+    private IJSObjectReference? viewportHandler;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            viewportModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/viewport-fit.js");
+            viewportHandler = await viewportModule.InvokeAsync<IJSObjectReference>("attach", viewportContent);
+        }
+    }
+
+    private void ToggleMenu() => menuOpen = !menuOpen;
+    private void CloseMenu() => menuOpen = false;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (viewportHandler is not null)
+        {
+            await viewportHandler.InvokeVoidAsync("dispose");
+            await viewportHandler.DisposeAsync();
+        }
+        if (viewportModule is not null)
+        {
+            await viewportModule.DisposeAsync();
+        }
+    }
+}

@@ -1,0 +1,68 @@
+.garmin-page { max-width: 1280px; margin: 0 auto; padding: 2rem 1.5rem 3rem; }
+.page-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 1.5rem; }
+.page-heading h1 { margin: 0.2rem 0; font-size: clamp(2rem, 4vw, 2.8rem); }
+.page-heading p { margin: 0; color: #a7bdc1; }
+.page-heading .eyebrow { color: #78aaa9; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.15em; }
+.training-badge { padding: 0.5rem 0.7rem; border: 1px solid #416668; border-radius: 4px; color: #a7d6cf; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; white-space: nowrap; }
+.device { position: relative; overflow: hidden; padding: 12px; border: 1px solid #46565e; border-radius: 12px; background: #10191e; box-shadow: 0 18px 50px #0007; }
+.device-top { display: flex; justify-content: space-between; gap: 1rem; padding: 0.4rem 0.6rem 0.8rem; color: #d7e6e8; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.device-top b { color: #52d2bd; }
+.display-layout { display: grid; grid-template-columns: minmax(0, 1fr) 165px; background: #11191f; }
+.chart-area { position: relative; min-width: 0; overflow: hidden; aspect-ratio: 10 / 7; background: #64c6db; }
+.chart { display: block; width: 100%; height: 100%; }
+.deep-water { fill: #3aafd3; }
+.shallow-water { fill: #98d7d6; }
+.land { fill: #f0df83; stroke: #b7ad61; stroke-width: 2; }
+.island { fill: #b7d94b; }
+.shore, .contour { fill: none; stroke: #65aab6; stroke-width: 2; opacity: 0.7; }
+.land-returns { fill: none; stroke: #cc3642; stroke-width: 17; stroke-linecap: round; stroke-dasharray: 9 10 3 6; opacity: 0.76; }
+.range-rings { fill: none; stroke: #203d46; stroke-width: 2; opacity: 0.8; }
+.heading-line { stroke: #253f47; stroke-width: 2; stroke-dasharray: 8 6; }
+.return-halo { fill: #d82c3d; opacity: 0.35; }
+.radar-return { fill: #b92232; stroke: #fff3bd; stroke-width: 2; }
+.contact-label { fill: #172f39; stroke: #a7e4e6; stroke-width: 3px; paint-order: stroke; font-size: 18px; font-weight: 700; }
+.vessel { fill: #f8fbf2; stroke: #142a36; stroke-width: 3; }
+.chart-status, .chart-readout { position: absolute; color: #fff; background: #142b35d9; text-shadow: 0 1px 2px #000; }
+.chart-status { top: 0.7rem; left: 0.7rem; display: flex; gap: 0.8rem; align-items: center; padding: 0.45rem 0.65rem; font-size: 0.75rem; }
+.chart-status span { color: #9de0c9; }
+.chart-readout { bottom: 0.7rem; left: 0.7rem; display: flex; gap: 0.7rem; align-items: center; padding: 0.5rem 0.65rem; font-size: 0.7rem; font-weight: 700; }
+.chart-readout strong { font-size: 0.95rem; }
+.zoom-controls { position: absolute; right: 0.7rem; bottom: 0.7rem; display: grid; gap: 0.35rem; }
+.zoom-controls button, .bottom-menu, .bottom-link, .touch-menu button { color: #f2f8f8; font: inherit; cursor: pointer; }
+.zoom-controls button { width: 48px; height: 48px; border: 1px solid #a1b9bd; border-radius: 4px; background: #203b48eF; font-size: 2rem; line-height: 1; }
+.zoom-controls button:disabled { opacity: 0.45; cursor: default; }
+.standby-message { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 0.7rem 1rem; background: #142b35e8; color: #fff; font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+.data-panel { display: flex; flex-direction: column; justify-content: space-around; padding: 0.6rem 1rem; color: #f1f5f5; }
+.data-panel div { padding: 0.45rem 0; border-bottom: 1px solid #33414a; }
+.data-panel div:last-child { border: 0; }
+.data-panel span { display: block; color: #c6d3d7; font-size: 0.75rem; }
+.data-panel strong { display: block; margin-top: 0.2rem; font-size: clamp(1.3rem, 2.5vw, 2rem); line-height: 1.1; white-space: nowrap; }
+.data-panel small { font-size: 0.5em; font-weight: 600; }
+.data-panel .position strong { font-size: 0.85rem; line-height: 1.5; }
+.device-bottom { display: flex; align-items: stretch; justify-content: space-between; min-height: 62px; background: #0a1116; }
+.bottom-link, .bottom-menu { display: flex; flex-direction: column; justify-content: center; align-items: center; min-width: 90px; border: 0; background: #162832; text-decoration: none; font-size: 1.35rem; }
+.bottom-link span, .bottom-menu span { font-size: 0.7rem; font-weight: 700; }
+.bottom-summary { display: flex; flex-direction: column; justify-content: center; color: #ebf4f4; text-align: center; font-size: 0.8rem; }
+.bottom-summary span { color: #91aab0; font-size: 0.7rem; }
+.touch-menu { position: absolute; z-index: 2; right: 12px; bottom: 74px; width: min(300px, calc(100% - 24px)); box-sizing: border-box; border: 1px solid #6b828b; background: #142832; box-shadow: 0 8px 24px #0009; }
+.menu-heading { display: flex; align-items: center; justify-content: space-between; padding-left: 1rem; min-height: 50px; background: #284957; }
+.menu-heading button { width: 50px; height: 50px; border: 0; background: transparent; font-size: 1.6rem; }
+.touch-menu > button { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 54px; padding: 0.7rem 1rem; border: 0; border-top: 1px solid #3c5862; background: #142832; text-align: left; }
+.touch-menu > button strong { color: #9de0c9; }
+.touch-menu button:hover, .bottom-menu:hover, .bottom-link:hover, .zoom-controls button:not(:disabled):hover { background: #37606d; }
+.touch-menu button:focus-visible, .bottom-menu:focus-visible, .bottom-link:focus-visible, .zoom-controls button:focus-visible { outline: 3px solid #ffdc72; outline-offset: -3px; }
+.notice { max-width: 75rem; color: #a7bdc1; font-size: 0.85rem; line-height: 1.6; }
+@media (max-width: 700px) {
+    .garmin-page { padding: 1.5rem 0.75rem 2rem; }
+    .page-heading { align-items: start; flex-direction: column; }
+    .display-layout { grid-template-columns: minmax(0, 1fr); }
+    .data-panel { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; padding: 0.6rem; }
+    .data-panel div { border: 0; }
+    .data-panel strong { font-size: clamp(1rem, 4vw, 1.5rem); }
+    .data-panel span { font-size: 0.65rem; }
+    .data-panel .position { grid-column: 1 / -1; }
+    .data-panel .position strong { font-size: 0.8rem; }
+    .data-panel .position strong br { display: none; }
+    .chart-readout { gap: 0.4rem; font-size: 0.6rem; }
+    .chart-readout strong { font-size: 0.75rem; }
+}
